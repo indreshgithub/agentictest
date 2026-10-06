@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Update these two variables to match your environment
-        OPENSHIFT_API = 'https://api.your-openshift-cluster.com:6443' 
+        OPENSHIFT_API = 'https://api.itz-0uvns0.infra01-lb.tok04.techzone.ibm.com:6443' 
         NAMESPACE     = 'customer-staging'
         APP_NAME      = 'httpd-stuck-app'
     }
