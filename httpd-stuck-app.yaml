@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpd-stuck-app
+  labels:
+    app: httpd-stuck-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpd-stuck-app
+  template:
+    metadata:
+      labels:
+        app: httpd-stuck-app
+    spec:
+      containers:
+      - name: httpd
+        image: httpd:2.4
+        ports:
+        - containerPort: 80
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          httpd-foreground &
+          sleep 5
+          echo "OK" > /usr/local/apache2/htdocs/health
+          echo "App started successfully..."
+          sleep 15
+          echo "HTTP/1.1 500 Internal Server Error" > /usr/local/apache2/htdocs/health
+          echo "CRITICAL: Process pool exhausted!"
+          wait
