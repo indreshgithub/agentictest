@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        OPENSHIFT_API = 'https://172.22.80.1:6443' // Your local CRC IP
+        OPENSHIFT_API = 'https://api.crc.testing:6443' // Your local CRC IP
         NAMESPACE     = 'default'
         APP_NAME      = 'httpd-stuck-app'
     }
@@ -11,7 +11,7 @@ pipeline {
         stage('Login to OpenShift') {
             steps {
                 withCredentials([string(credentialsId: 'openshift-token', variable: 'openshift-token')]) {
-                    sh 'oc login https://host.docker.internal:6443 --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify=true'
+                    sh 'oc login https://host.docker.internal:6443 --token=${openshift-token} --insecure-skip-tls-verify=true'
                 }
             }
         }
