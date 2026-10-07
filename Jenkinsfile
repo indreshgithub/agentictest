@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Update these two variables to match your environment
-        OPENSHIFT_API = 'https://host.docker.internal:6443' 
+        OPENSHIFT_API = 'https://192.168.0.170:6443' 
         NAMESPACE     = 'default'
         APP_NAME      = 'httpd-stuck-app'
     }
