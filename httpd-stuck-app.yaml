@@ -22,11 +22,11 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          httpd-foreground &
-          sleep 5
+          # Create initial healthy endpoint
           echo "OK" > /usr/local/apache2/htdocs/health
-          echo "App started successfully..."
-          sleep 15
-          echo "HTTP/1.1 500 Internal Server Error" > /usr/local/apache2/htdocs/health
-          echo "CRITICAL: Process pool exhausted!"
-          wait
+          
+          # Degrade health check after 10 seconds in background
+          (sleep 10 && echo "500 Internal Server Error" > /usr/local/apache2/htdocs/health) &
+          
+          # Keep httpd running in foreground so container never stops
+          exec httpd-foreground
