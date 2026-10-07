@@ -1,7 +1,16 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: customer-dev
+  labels:
+    app.kubernetes.io/managed-by: pod-error-simulation
+    environment: development
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: httpd-stuck-app
+  namespace: customer-dev
   labels:
     app: httpd-stuck-app
 spec:
@@ -15,23 +24,20 @@ spec:
         app: httpd-stuck-app
     spec:
       securityContext:
-        runAsUser: 0 # Force run as root user if OpenShift SCC permits
+        runAsUser: 0
       containers:
-      - name: httpd
-        image: httpd:2.4
-        ports:
-        - containerPort: 80
-        command: ["/bin/sh", "-c"]
-        args:
-        - |
-          # Enable htaccess overriding for custom HTTP response codes
-          sed -i 's/AllowOverride None/AllowOverride All/g' /usr/local/apache2/conf/httpd.conf
-          
-          # Create initial healthy healthcheck endpoint (HTTP 200)
-          echo "OK" > /usr/local/apache2/htdocs/health
-          
-          # After 10 seconds, write an htaccess rule that causes /health to return HTTP 500
-          (sleep 10 && echo 'Redirect 500 /health' > /usr/local/apache2/htdocs/.htaccess) &
-          
-          # Keep Apache running in foreground so the pod stays in "Running" state
-          exec httpd-foreground
+        - name: httpd
+          image: httpd:2.4
+          ports:
+            - containerPort: 80
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              sed -i 's/AllowOverride None/AllowOverride All/g' /usr/local/apache2/conf/httpd.conf
+              echo "OK" > /usr/local/apache2/htdocs/health
+              (sleep 10 && echo 'Redirect 500 /health' > /usr/local/apache2/htdocs/.htaccess) &
+              (while true; do
+                echo "ERROR: Connection refused: simulated database service unavailable" >&2
+                sleep 2
+              done) &
+              exec httpd-foreground
