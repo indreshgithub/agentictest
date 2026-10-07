@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         OPENSHIFT_API = 'https://api.crc.testing:6443' // Your local CRC IP
-        NAMESPACE     = 'default'
+        NAMESPACE     = 'customer-dev'
         APP_NAME      = 'httpd-stuck-app'
     }
 
