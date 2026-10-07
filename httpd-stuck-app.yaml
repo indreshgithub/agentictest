@@ -22,11 +22,14 @@ spec:
         command: ["/bin/sh", "-c"]
         args:
         - |
-          # Create initial healthy endpoint
+          # Enable htaccess overriding for custom HTTP response codes
+          sed -i 's/AllowOverride None/AllowOverride All/g' /usr/local/apache2/conf/httpd.conf
+          
+          # Create initial healthy healthcheck endpoint (HTTP 200)
           echo "OK" > /usr/local/apache2/htdocs/health
           
-          # Degrade health check after 10 seconds in background
-          (sleep 10 && echo "500 Internal Server Error" > /usr/local/apache2/htdocs/health) &
+          # After 10 seconds, write an htaccess rule that causes /health to return HTTP 500
+          (sleep 10 && echo 'Redirect 500 /health' > /usr/local/apache2/htdocs/.htaccess) &
           
-          # Keep httpd running in foreground so container never stops
+          # Keep Apache running in foreground so the pod stays in "Running" state
           exec httpd-foreground
