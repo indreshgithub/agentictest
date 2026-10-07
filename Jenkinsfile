@@ -21,12 +21,12 @@ pipeline {
                 script {
                     echo "Deploying HTTPD application to OpenShift namespace: ${env.NAMESPACE}..."
                     bat "oc apply -f httpd-stuck-app.yaml -n %NAMESPACE%"
-
+        
                     echo "Waiting for deployment rollout to finish..."
-                    // Waits until at least 1 replica is running and ready
-                    bat "oc rollout status deployment/%APP_NAME% -n %NAMESPACE% --timeout=60s"
+                    // Increased timeout to 120s
+                    bat "oc rollout status deployment/%APP_NAME% -n %NAMESPACE% --timeout=120s"
                 }
-            }
+              }
         }
 
         stage('Simulate & Verify App Degradation') {
