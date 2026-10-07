@@ -10,8 +10,8 @@ pipeline {
     stages {
         stage('Login to OpenShift') {
             steps {
-                withCredentials([string(credentialsId: 'openshift-token', variable: 'openshift-token')]) {
-                    sh 'oc login https://host.docker.internal:6443 --token=${openshift-token} --insecure-skip-tls-verify=true'
+                withCredentials([string(credentialsId: 'openshift-token', variable: 'OPENSHIFT_TOKEN')]) {
+                    bat 'oc login https://host.docker.internal:6443 --token=%OPENSHIFT_TOKEN% --insecure-skip-tls-verify=true'
                 }
             }
         }
@@ -20,7 +20,7 @@ pipeline {
             steps {
                 script {
                     echo "Deploying HTTPD application to OpenShift..."
-                    sh "oc apply -f httpd-stuck-app.yaml -n ${NAMESPACE}"
+                    bat "oc apply -f httpd-stuck-app.yaml -n %NAMESPACE%"
                 }
             }
         }
@@ -31,24 +31,27 @@ pipeline {
                     echo "Waiting 15 seconds for application to enter degraded state..."
                     sleep 15
         
-                    def podName = sh(
-                        script: "oc get pods -l app=${APP_NAME} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}'",
+                    def podName = bat(
+                        script: "oc get pods -l app=%APP_NAME% -n %NAMESPACE% -o jsonpath=\"{.items[0].metadata.name}\"",
                         returnStdout: true
                     ).trim()
+
+                    // bat returns the executed command line on Windows along with stdout; clean up extra lines
+                    podName = podName.tokenize('\n').last().trim()
         
                     echo "Testing HTTP health status on pod: ${podName}"
                     
                     // Read content directly without requiring curl
-                    def healthContent = sh(
-                        script: "oc exec ${podName} -n ${NAMESPACE} -- cat /usr/local/apache2/htdocs/health",
+                    def healthContent = bat(
+                        script: "oc exec ${podName} -n %NAMESPACE% -- cat /usr/local/apache2/htdocs/health",
                         returnStdout: true
                     ).trim()
         
                     echo "Health File Content: ${healthContent}"
         
                     // Check if .htaccess redirect rule exists (Simulating 500 error)
-                    def htaccessContent = sh(
-                        script: "oc exec ${podName} -n ${NAMESPACE} -- cat /usr/local/apache2/htdocs/.htaccess",
+                    def htaccessContent = bat(
+                        script: "oc exec ${podName} -n %NAMESPACE% -- cat /usr/local/apache2/htdocs/.htaccess",
                         returnStdout: true
                     ).trim()
         
