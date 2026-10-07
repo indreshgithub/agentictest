@@ -10,9 +10,8 @@ pipeline {
     stages {
         stage('Login to OpenShift') {
             steps {
-                withCredentials([string(credentialsId: 'openshift-token', variable: 'OPENSHIFT_TOKEN')]) {
-                    sh 'oc login ${OPENSHIFT_API} --token="${OPENSHIFT_TOKEN}" --insecure-skip-tls-verify=true'
-                    sh "oc project ${NAMESPACE}"
+                withCredentials([string(credentialsId: 'OPENSHIFT_TOKEN', variable: 'OPENSHIFT_TOKEN')]) {
+                    sh 'oc login https://host.docker.internal:6443 --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify=true'
                 }
             }
         }
