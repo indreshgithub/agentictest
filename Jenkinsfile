@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        OPENSHIFT_API = 'https://api.crc.testing:6443' // Your local CRC IP
+        OPENSHIFT_API = 'https://api.crc.testing:6443'
         NAMESPACE     = 'customer-dev'
         APP_NAME      = 'httpd-stuck-app'
     }
@@ -11,16 +11,20 @@ pipeline {
         stage('Login to OpenShift') {
             steps {
                 withCredentials([string(credentialsId: 'openshift-token', variable: 'OPENSHIFT_TOKEN')]) {
-                    // Using the OPENSHIFT_API variable directly
                     bat 'oc login %OPENSHIFT_API% --token=%OPENSHIFT_TOKEN% --insecure-skip-tls-verify=true'
                 }
             }
         }
+
         stage('Deploy App') {
             steps {
                 script {
-                    echo "Deploying HTTPD application to OpenShift..."
+                    echo "Deploying HTTPD application to OpenShift namespace: ${env.NAMESPACE}..."
                     bat "oc apply -f httpd-stuck-app.yaml -n %NAMESPACE%"
+
+                    echo "Waiting for deployment rollout to finish..."
+                    // Waits until at least 1 replica is running and ready
+                    bat "oc rollout status deployment/%APP_NAME% -n %NAMESPACE% --timeout=60s"
                 }
             }
         }
@@ -28,20 +32,18 @@ pipeline {
         stage('Simulate & Verify App Degradation') {
             steps {
                 script {
-                    echo "Waiting 15 seconds for application to enter degraded state..."
-                    sleep 15
+                    echo "Waiting 12 seconds for htaccess 500 trigger script to run..."
+                    sleep 12
         
                     def podName = bat(
                         script: "oc get pods -l app=%APP_NAME% -n %NAMESPACE% -o jsonpath=\"{.items[0].metadata.name}\"",
                         returnStdout: true
                     ).trim()
 
-                    // bat returns the executed command line on Windows along with stdout; clean up extra lines
-                    podName = podName.tokenize('\n').last().trim()
+                    podName = podName.tokenize('\r\n').last().trim()
         
                     echo "Testing HTTP health status on pod: ${podName}"
                     
-                    // Read content directly without requiring curl
                     def healthContent = bat(
                         script: "oc exec ${podName} -n %NAMESPACE% -- cat /usr/local/apache2/htdocs/health",
                         returnStdout: true
@@ -49,7 +51,6 @@ pipeline {
         
                     echo "Health File Content: ${healthContent}"
         
-                    // Check if .htaccess redirect rule exists (Simulating 500 error)
                     def htaccessContent = bat(
                         script: "oc exec ${podName} -n %NAMESPACE% -- cat /usr/local/apache2/htdocs/.htaccess",
                         returnStdout: true
@@ -57,10 +58,9 @@ pipeline {
         
                     echo ".htaccess Rules Active: ${htaccessContent}"
         
-                    if (htaccessContent.contains("Redirect 500")) {
+                    if (htaccessContent.contains("Redirect 500") || htaccessContent.contains("RewriteRule")) {
                         echo "--------------------------------------------------------"
-                        echo "SUCCESS: Pod is active and .htaccess 500 rule is live!"
-                        echo "Agentic app can now detect failure and trigger restart."
+                        echo "SUCCESS: Pod is active and 500 rule is live!"
                         echo "--------------------------------------------------------"
                     }
                 }
