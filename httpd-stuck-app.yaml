@@ -14,6 +14,8 @@ spec:
       labels:
         app: httpd-stuck-app
     spec:
+      securityContext:
+        runAsUser: 0 # Force run as root user if OpenShift SCC permits
       containers:
       - name: httpd
         image: httpd:2.4
