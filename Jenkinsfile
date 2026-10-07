@@ -2,8 +2,7 @@ pipeline {
     agent any
 
     environment {
-        // Update these two variables to match your environment
-        OPENSHIFT_API = 'https://172.22.80.1:6443' 
+        OPENSHIFT_API = 'https://172.22.80.1:6443' // Your local CRC IP
         NAMESPACE     = 'default'
         APP_NAME      = 'httpd-stuck-app'
     }
@@ -12,8 +11,7 @@ pipeline {
         stage('Login to OpenShift') {
             steps {
                 withCredentials([string(credentialsId: 'openshift-token', variable: 'OPENSHIFT_TOKEN')]) {
-                    // Log into OpenShift CLI using stored credentials
-                    sh "oc login ${OPENSHIFT_API} --token=${OPENSHIFT_TOKEN} --insecure-skip-tls-verify=true"
+                    sh 'oc login ${OPENSHIFT_API} --token="${OPENSHIFT_TOKEN}" --insecure-skip-tls-verify=true'
                     sh "oc project ${NAMESPACE}"
                 }
             }
@@ -28,33 +26,37 @@ pipeline {
             }
         }
 
-        stage('Simulate Failure') {
-                steps {
-                    script {
-                        echo "Waiting 15 seconds for application to enter degraded state..."
-                        sleep 15
-            
-                        def podName = sh(
-                            script: "oc get pods -l app=${APP_NAME} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}'",
-                            returnStdout: true
-                        ).trim()
-            
-                        echo "Checking health status on pod: ${podName}"
-                        
-                        // Read health status
-                        def healthOutput = sh(
-                            script: "oc exec ${podName} -n ${NAMESPACE} -- cat /usr/local/apache2/htdocs/health",
-                            returnStdout: true
-                        ).trim()
-            
-                        echo "Pod Health Status Output: ${healthOutput}"
-            
-                        if (healthOutput.contains("500")) {
-                            echo "ALERT: Pod ${podName} is DEGRADED! Ready for Agentic App intervention/restart."
-                        }
+        stage('Simulate & Verify App Degradation') {
+            steps {
+                script {
+                    echo "Waiting 15 seconds for application to enter degraded state..."
+                    sleep 15
+
+                    def podName = sh(
+                        script: "oc get pods -l app=${APP_NAME} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}'",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Testing HTTP health endpoint on pod: ${podName}"
+                    
+                    // Run curl inside the container to fetch the HTTP status code on /health
+                    def httpCode = sh(
+                        script: "oc exec ${podName} -n ${NAMESPACE} -- curl -s -o /dev/null -w '%{http_code}' http://localhost/health",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "HTTP Response Code from /health: ${httpCode}"
+
+                    if (httpCode == "500") {
+                        echo "--------------------------------------------------------"
+                        echo "SUCCESS: Pod is running, but /health is returning HTTP 500!"
+                        echo "Agentic app can now detect HTTP 500 and restart this pod."
+                        echo "--------------------------------------------------------"
+                    } else {
+                        error("Expected HTTP 500 but got ${httpCode}")
                     }
                 }
-            
+            }
         }
     }
 }
