@@ -29,19 +29,30 @@ pipeline {
         }
 
         stage('Simulate Failure') {
-            steps {
-                script {
-                    echo "Waiting 20 seconds for simulated process exhaustion..."
-                    sleep 20
-
-                    def podName = sh(
-                        script: "oc get pods -l app=${APP_NAME} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}'",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Checking health status on pod: ${podName}"
-                    sh "oc exec ${podName} -n ${NAMESPACE} -- cat /usr/local/apache2/htdocs/health"
-                    echo "ALERT: Pod is now degraded! Ready for Agentic App restart."
+                steps {
+                    script {
+                        echo "Waiting 15 seconds for application to enter degraded state..."
+                        sleep 15
+            
+                        def podName = sh(
+                            script: "oc get pods -l app=${APP_NAME} -n ${NAMESPACE} -o jsonpath='{.items[0].metadata.name}'",
+                            returnStdout: true
+                        ).trim()
+            
+                        echo "Checking health status on pod: ${podName}"
+                        
+                        // Read health status
+                        def healthOutput = sh(
+                            script: "oc exec ${podName} -n ${NAMESPACE} -- cat /usr/local/apache2/htdocs/health",
+                            returnStdout: true
+                        ).trim()
+            
+                        echo "Pod Health Status Output: ${healthOutput}"
+            
+                        if (healthOutput.contains("500")) {
+                            echo "ALERT: Pod ${podName} is DEGRADED! Ready for Agentic App intervention/restart."
+                        }
+                    }
                 }
             }
         }
