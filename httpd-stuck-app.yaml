@@ -5,6 +5,9 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: pod-error-simulation
     environment: development
+    pod-security.kubernetes.io/enforce: privileged
+    pod-security.kubernetes.io/audit: privileged
+    pod-security.kubernetes.io/warn: privileged
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,11 +36,42 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
+              # Enable htaccess overriding and load rewrite module
               sed -i 's/AllowOverride None/AllowOverride All/g' /usr/local/apache2/conf/httpd.conf
+              sed -i 's/#LoadModule rewrite_module/LoadModule rewrite_module/g' /usr/local/apache2/conf/httpd.conf
+              
+              # Initial healthy state
               echo "OK" > /usr/local/apache2/htdocs/health
-              (sleep 10 && echo 'Redirect 500 /health' > /usr/local/apache2/htdocs/.htaccess) &
+              
+              # Simulate HTTP 500 degradation on /health after 10 seconds
+              (sleep 10 && echo -e "RewriteEngine On\nRewriteRule ^health$ - [R=500,L]" > /usr/local/apache2/htdocs/.htaccess) &
+              
+              # Error logging simulation
               (while true; do
                 echo "ERROR: Connection refused: simulated database service unavailable" >&2
                 sleep 2
               done) &
+              
               exec httpd-foreground
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpd-stuck-app
+  namespace: customer-dev
+spec:
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: httpd-stuck-app
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: httpd-stuck-app
+  namespace: customer-dev
+spec:
+  to:
+    kind: Service
+    name: httpd-stuck-app
