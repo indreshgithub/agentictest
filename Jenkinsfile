@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         // Update these two variables to match your environment
-        OPENSHIFT_API = 'https://console-openshift-console.apps-crc.testing/' 
+        OPENSHIFT_API = 'https://api.crc.testing:6443' 
         NAMESPACE     = 'default'
         APP_NAME      = 'httpd-stuck-app'
     }
