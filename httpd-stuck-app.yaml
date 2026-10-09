@@ -48,7 +48,7 @@ spec:
               
               # Delay for 30 seconds, then start continuously logging database errors
               (sleep 30 && while true; do
-                echo "[WARN] Temporary resource exhaustion: Connection pool saturated, process thread pool temporarily starved. Auto-recovery pending." >&2
+                echo "[ERROR] HTTP/1.1" 500 568 - Worker thread pool exhausted and non-responsive." >&2
                 sleep 2
               done) &
               
