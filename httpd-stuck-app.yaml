@@ -48,7 +48,7 @@ spec:
               
               # Delay for 30 seconds, then start continuously logging database errors
               (sleep 30 && while true; do
-                echo "ERROR: Connection refused: simulated database service unavailable" >&2
+                echo "FATAL ERROR: Java heap space / OutOfMemoryError. Critical process deadlocked or out of memory. Process terminating." >&2
                 sleep 2
               done) &
               
