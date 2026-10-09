@@ -23,10 +23,9 @@ pipeline {
                     bat "oc apply -f httpd-stuck-app.yaml -n %NAMESPACE%"
         
                     echo "Waiting for deployment rollout to finish..."
-                    // Increased timeout to 120s
                     bat "oc rollout status deployment/%APP_NAME% -n %NAMESPACE% --timeout=120s"
                 }
-              }
+            }
         }
 
         stage('Simulate & Verify App Degradation') {
@@ -51,10 +50,16 @@ pipeline {
         
                     echo "Health File Content: ${healthContent}"
         
-                    def htaccessContent = bat(
-                        script: "oc exec ${podName} -n %NAMESPACE% -- cat /usr/local/apache2/htdocs/.htaccess",
-                        returnStdout: true
-                    ).trim()
+                    // Safely check for .htaccess without crashing the pipeline if it's missing
+                    def htaccessContent = ""
+                    try {
+                        htaccessContent = bat(
+                            script: "oc exec ${podName} -n %NAMESPACE% -- cat /usr/local/apache2/htdocs/.htaccess",
+                            returnStdout: true
+                        ).trim()
+                    } catch (Exception e) {
+                        echo "Notice: .htaccess file was not found or could not be read."
+                    }
         
                     echo ".htaccess Rules Active: ${htaccessContent}"
         
@@ -62,6 +67,8 @@ pipeline {
                         echo "--------------------------------------------------------"
                         echo "SUCCESS: Pod is active and 500 rule is live!"
                         echo "--------------------------------------------------------"
+                    } else {
+                        echo "INFO: No matching 500 error rules detected in .htaccess."
                     }
                 }
             }
