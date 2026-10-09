@@ -33,6 +33,12 @@ spec:
           image: httpd:2.4
           ports:
             - containerPort: 80
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 80
+            initialDelaySeconds: 35
+            periodSeconds: 10
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -43,14 +49,14 @@ spec:
               # Initial healthy state (HTTP 200)
               echo "OK" > /usr/local/apache2/htdocs/health
               
-              # Delay for 30 seconds before triggering HTTP 500 error on /health (using printf instead of echo -e)
+              # Delay for 30 seconds before triggering HTTP 500 error on /health (using printf)
               (sleep 30 && printf "RewriteEngine On\nRewriteRule ^health\$ - [R=500,L]\n" > /usr/local/apache2/htdocs/.htaccess) &
               
-              # Delay for 30 seconds, then start continuously logging database errors
-            (sleep 30 && while true; do
-  echo "[CRITICAL] [Threadpool-Worker-0] FATAL: Thread pool saturation reached 100%. Unrecoverable deadlocked state. Forcing process termination." >&2
-  sleep 2
-done) &
+              # Delay for 30 seconds, then start continuously logging critical thread errors
+              (sleep 30 && while true; do
+                echo "[CRITICAL] [Threadpool-Worker-0] FATAL: Thread pool saturation reached 100%. Unrecoverable deadlocked state. Forcing process termination." >&2
+                sleep 2
+              done) &
               
               exec httpd-foreground
 ---
