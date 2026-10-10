@@ -54,7 +54,7 @@ spec:
               
               # Delay for 30 seconds, then start continuously logging critical thread errors
               (sleep 30 && while true; do
-                echo "[CRITICAL] [Threadpool-Worker-0] FATAL: Thread pool saturation reached 100%. Unrecoverable deadlocked state. Forcing process termination." >&2
+                echo "Out of Memory (OOMKilled / Exit Code 137)" >&2
                 sleep 2
               done) &
               
